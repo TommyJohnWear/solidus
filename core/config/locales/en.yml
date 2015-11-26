@@ -1,4 +1,11 @@
 en:
+  activemodel:
+    attributes:
+      spree/order_cancellations:
+        quantity: Quantity
+        state: State
+        shipment: Shipment
+        cancel: Cancel
   activerecord:
     attributes:
       spree/address:
