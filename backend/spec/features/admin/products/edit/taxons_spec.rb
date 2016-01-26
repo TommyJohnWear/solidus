@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe "Product Taxons", :type => :feature do
+describe "Product Taxons", type: :feature do
   stub_authorization!
 
   context "managing taxons", js: true do
@@ -14,18 +14,17 @@ describe "Product Taxons", :type => :feature do
       expect(page).to have_xpath("//*[@id = 'product_taxon_ids' and @value = '#{expected_value}']", visible: :all)
     end
 
-    let(:product) { create(:product) }
-
-    it "should allow an admin to manage taxons" do
+    it "should allow an admin to manage taxons", js: true do
       taxon_1 = create(:taxon)
       taxon_2 = create(:taxon, name: 'Clothing')
+      product = create(:product)
       product.taxons << taxon_1
 
       visit spree.edit_admin_product_path(product)
 
       assert_selected_taxons([taxon_1])
 
-      select2_search "Clothing", :from => "Taxons"
+      select2_search "Clothing", from: "Taxons"
       click_button "Update"
       assert_selected_taxons([taxon_1, taxon_2])
     end
