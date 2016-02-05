@@ -105,12 +105,6 @@ module Spree
         end
       end
 
-      def text_for_button_link(text, _html_options)
-        s = ''
-        s << text
-        raw(s)
-      end
-
       def configurations_menu_item(link_text, url, description = '')
         %(<tr>
           <td>#{link_to(link_text, url)}</td>
