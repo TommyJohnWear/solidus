@@ -145,6 +145,9 @@ en:
         presentation: Presentation
       spree/prototype:
         name: Name
+      spree/refund:
+        amount: Amount
+        refund_reason_id: Reason
       spree/return_authorization:
         amount: Amount
       spree/role:
@@ -759,6 +762,7 @@ en:
     created_successfully: Created successfully
     credit: Credit
     credits: Credits
+    credit_allowed: Credit Allowed
     credit_card: Credit Card
     credit_cards: Credit Cards
     credit_owed: Credit Owed
@@ -818,6 +822,7 @@ en:
     editing_property: Editing Property
     editing_prototype: Editing Prototype
     edit_refund_reason: Edit Refund Reason
+    editing_refund: Editing Refund
     editing_refund_reason: Editing Refund Reason
     editing_reimbursement: Editing Reimbursement
     editing_reimbursement_type: Editing Reimbursement Type
@@ -1210,6 +1215,7 @@ en:
     path: Path
     pay: pay
     payment: Payment
+    payment_amount: Payment Amount
     payment_could_not_be_created: Payment could not be created.
     payment_identifier: Payment Identifier
     payment_information: Payment Information
