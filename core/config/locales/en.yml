@@ -150,6 +150,9 @@ en:
         refund_reason_id: Reason
       spree/return_authorization:
         amount: Amount
+      spree/return_reason:
+        name: Name
+        active: Active
       spree/role:
         name: Name
       spree/shipping_method:
