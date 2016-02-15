@@ -14,10 +14,11 @@ describe "Product Taxons", type: :feature do
       expect(page).to have_xpath("//*[@id = 'product_taxon_ids' and @value = '#{expected_value}']", visible: :all)
     end
 
-    it "should allow an admin to manage taxons", js: true do
+    let(:product) { create(:product) }
+
+    it "should allow an admin to manage taxons" do
       taxon_1 = create(:taxon)
       taxon_2 = create(:taxon, name: 'Clothing')
-      product = create(:product)
       product.taxons << taxon_1
 
       visit spree.edit_admin_product_path(product)
