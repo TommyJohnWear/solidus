@@ -34,7 +34,7 @@ module Spree
 
     attr_reader :money
 
-    delegate :cents, to: :money
+    delegate :cents, :currency, :to_d, :zero?, to: :money
 
     # @param amount [Money, #to_s] the value of the money object
     # @param options [Hash] the options for creating the money object
