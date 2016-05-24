@@ -6,8 +6,8 @@ module Spree
           dependent: :destroy
         has_many :taxons, through: :promotion_rule_taxons, class_name: 'Spree::Taxon'
 
-        MATCH_POLICIES = %w(any all none)
-        preference :match_policy, default: MATCH_POLICIES.first
+        MATCH_POLICIES = %w(any all)
+        preference :match_policy, :string, default: MATCH_POLICIES.first
 
         def applicable?(promotable)
           promotable.is_a?(Spree::Order)
