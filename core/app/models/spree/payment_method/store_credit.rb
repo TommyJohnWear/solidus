@@ -95,7 +95,7 @@ module Spree
         end
         credit(amount, auth_code, { originator: store_credit_event.originator })
       elsif store_credit_event.authorization_action?
-        store_credit.void(auth_code)
+        void(auth_code)
       else
         ActiveMerchant::Billing::Response.new(false, '', {}, {})
       end

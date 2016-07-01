@@ -316,7 +316,7 @@ describe Spree::PaymentMethod::StoreCredit do
         }
 
         it "creates a store credit for the same amount that was captured" do
-          expect_any_instance_of(Spree::StoreCredit).to receive(:void).with(auth_code)
+          expect_any_instance_of(Spree::StoreCredit).to receive(:void).with(auth_code, {action_originator: nil})
           subject
         end
       end
