@@ -26,11 +26,11 @@
     </colgroup>
     <thead>
       <tr data-hook="admin_payment_methods_index_headers">
-        <th></th>
-        <th><%= Spree.t(:name) %></th>
-        <th><%= Spree.t(:provider) %></th>
-        <th><%= Spree.t(:display) %></th>
-        <th><%= Spree.t(:active) %></th>
+        <th class="no-border"></th>
+        <th><%= Spree::PaymentMethod.human_attribute_name(:name) %></th>
+        <th><%= Spree::PaymentMethod.human_attribute_name(:type) %></th>
+        <th><%= Spree::PaymentMethod.human_attribute_name(:display_on) %></th>
+        <th><%= Spree::PaymentMethod.human_attribute_name(:active) %></th>
         <th data-hook="admin_payment_methods_index_header_actions" class="actions"></th>
       </tr>
     </thead>
