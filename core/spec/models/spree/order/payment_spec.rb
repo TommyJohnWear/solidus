@@ -10,15 +10,11 @@ module Spree
       before do
         # So that Payment#purchase! is called during processing
         Spree::Config[:auto_capture] = true
-
-        allow(order).to receive_message_chain(:line_items, :empty?).and_return(false)
-        allow(order).to receive_messages total: 100
       end
 
       it 'processes all checkout payments' do
-        payment_1 = create(:payment, amount: 50)
-        payment_2 = create(:payment, amount: 50)
-        allow(order).to receive(:unprocessed_payments).and_return([payment_1, payment_2])
+        payment_1 = create(:payment, order: order, amount: 50)
+        payment_2 = create(:payment, order: order, amount: 50)
 
         order.process_payments!
         updater.update_payment_state
@@ -31,10 +27,9 @@ module Spree
       end
 
       it 'does not go over total for order' do
-        payment_1 = create(:payment, amount: 50)
-        payment_2 = create(:payment, amount: 50)
-        payment_3 = create(:payment, amount: 50)
-        allow(order).to receive(:unprocessed_payments).and_return([payment_1, payment_2, payment_3])
+        payment_1 = create(:payment, order: order, amount: 50)
+        payment_2 = create(:payment, order: order, amount: 50)
+        payment_3 = create(:payment, order: order, amount: 50)
 
         order.process_payments!
         updater.update_payment_state
@@ -48,8 +43,9 @@ module Spree
       end
 
       it "does not use failed payments" do
-        payment_1 = create(:payment, amount: 50)
-        payment_2 = create(:payment, amount: 50, state: 'failed')
+        create(:payment, order: order, amount: 50)
+        create(:payment, order: order, amount: 50, state: 'failed')
+        order.payments.reload
 
         expect(order.payments[0]).to receive(:process!).and_call_original
         expect(order.payments[1]).not_to receive(:process!)
