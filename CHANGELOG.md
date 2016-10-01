@@ -11,6 +11,13 @@
     Warning: this change also deletes the `currency` database field (String)
     from the line items table, since it will not be used anymore.
 
+*   Added Spree::Config.tax_adjuster_class
+
+    To allow easier customization of tax calculation in extensions or
+    applications.
+
+    https://github.com/solidusio/solidus/pull/1479
+
 *   Add `Spree::Promotion#remove_from` and `Spree::PromotionAction#remove_from`
 
     This will allow promotions to be removed from orders and allows promotion
@@ -48,6 +55,11 @@
 *   The `lastname` field on `Address` is now optional. [#1369](https://github.com/solidusio/solidus/pull/1369)
 
 *   Removals
+
+    * Removed deprecated method `Spree::TaxRate.adjust` (not to be confused with
+      Spree::TaxRate#adjust) in favor of `Spree::Config.tax_adjuster_class`.
+
+      https://github.com/solidusio/solidus/pull/1462
 
     * Removed deprecated method `Promotion#expired?` in favor of
       `Promotion#inactive?`
