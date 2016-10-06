@@ -35,6 +35,10 @@
     * Removed deprecated method `Spree::TaxRate.adjust` (not to be confused with
       Spree::TaxRate#adjust) in favor of `Spree::Tax::OrderAdjuster`.
 
+    * Removed nested attribute helpers `generate_template`, `generate_html`,
+      and `remove_nested`. Also removes some javascript bound to selectors
+      `.remove`, `a[id*=nested]`.
+
 ## Solidus 2.0.0 (unreleased)
 
 *   Upgrade to rails 5.0
