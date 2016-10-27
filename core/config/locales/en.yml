@@ -477,6 +477,7 @@ en:
         type_html_header: "Credit Type"
         created_by: "Created By"
         history: "Store credit history"
+        ledger_entries: "Ledger Entries"
         invalidated: "Invalidated"
         issued_on: "Issued On"
         payment_originator: "Payment - Order #%{order_number}"

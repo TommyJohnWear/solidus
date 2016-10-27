@@ -12,10 +12,20 @@ describe "Store credits admin" do
       and_return(store_credit.user)
   end
 
+  def visit_users
+    visit spree.admin_path
+    click_link "Users"
+  end
+
+  def visit_store_credit
+    click_link store_credit.user.email
+    click_link "Store Credit"
+    allow_any_instance_of(Spree::Admin::StoreCreditsController).to receive_messages(try_spree_current_user: admin_user)
+  end
+
   describe "visiting the store credits page" do
     before do
-      visit spree.admin_path
-      click_link "Users"
+      visit_users
     end
 
     it "should be on the store credits page" do
@@ -23,7 +33,7 @@ describe "Store credits admin" do
       click_link "Store Credit"
       expect(page.current_path).to eq spree.admin_user_store_credits_path(store_credit.user)
 
-      store_credit_table = page.find(".twelve.columns > table")
+      store_credit_table = page.find("#sc-table")
       expect(store_credit_table).to have_css('tr', count: 1)
       expect(store_credit_table).to have_content(Spree::Money.new(store_credit.amount).to_s)
       expect(store_credit_table).to have_content(Spree::Money.new(store_credit.amount_used).to_s)
@@ -34,11 +44,8 @@ describe "Store credits admin" do
 
   describe "creating store credit" do
     before do
-      visit spree.admin_path
-      click_link "Users"
-      click_link store_credit.user.email
-      click_link "Store Credit"
-      allow_any_instance_of(Spree::Admin::StoreCreditsController).to receive_messages(try_spree_current_user: admin_user)
+      visit_users
+      visit_store_credit
     end
 
     it "should create store credit and associate it with the user" do
@@ -48,7 +55,7 @@ describe "Store credits admin" do
       click_button "Create"
 
       expect(page.current_path).to eq spree.admin_user_store_credits_path(store_credit.user)
-      store_credit_table = page.find(".twelve.columns > table")
+      store_credit_table = page.find("#sc-table")
       expect(store_credit_table).to have_css('tr', count: 2)
       expect(Spree::StoreCredit.count).to eq 2
     end
@@ -59,15 +66,12 @@ describe "Store credits admin" do
     let!(:update_reason) { create(:store_credit_update_reason) }
 
     before do
-      visit spree.admin_path
-      click_link "Users"
-      click_link store_credit.user.email
-      click_link "Store Credit"
-      allow_any_instance_of(Spree::Admin::StoreCreditsController).to receive_messages(try_spree_current_user: admin_user)
+      visit_users
+      visit_store_credit
     end
 
     it "updates the store credit's amount" do
-      page.find(".twelve.columns > table td.actions a.fa-edit").click
+      page.find("#sc-table td.actions a.fa-edit").click
       expect(page).to have_content 'Store credit history'
       click_link "Change amount"
       expect(page).to have_content 'Editing store credit amount'
@@ -79,4 +83,54 @@ describe "Store credits admin" do
     end
   end
 
+  describe 'Store credit ledger table' do
+    describe "for newly created store credit" do
+      before do
+        visit_users
+        visit_store_credit
+      end
+
+      it "list the correct ledger entry and balances" do
+        page.find("#sc-table td.actions a.fa-edit").click
+        expect(page).to have_content 'Ledger Entries'
+
+        store_credit_ledger_table = page.find('#sc-ledger-table')
+        expect(store_credit_ledger_table).to have_content "$150.00"
+        # the balances are in a tr as well, so with 1 entry
+        # there will be 4 rows in the table. (also header row)
+        expect(store_credit_ledger_table).to have_css('tr', count: 4)
+      end
+
+      describe 'with pending entries' do
+        before do
+          Spree::StoreCreditLedgerEntry.debit(
+            store_credit,
+            90,
+            admin_user, # only for this example, will be Spree::Payment
+            Spree::StoreCreditLedgerEntry::LIABILITY
+          )
+
+          Spree::StoreCreditLedgerEntry.debit(
+            store_credit,
+            40,
+            admin_user, # see above, will be Spree::Payment normally
+            Spree::StoreCreditLedgerEntry::PENDING
+          )
+
+          visit_users
+          visit_store_credit
+        end
+
+        it "list the changes and the correct (different) balances" do
+          page.find("#sc-table td.actions a.fa-edit").click
+          expect(page).to have_content 'Ledger Entries'
+
+          store_credit_ledger_table = page.find('#sc-ledger-table')
+          expect(store_credit_ledger_table).to have_content "$150.00"
+          expect(store_credit_ledger_table).to have_content "Current Liability Balance: $60.00"
+          expect(store_credit_ledger_table).to have_content "Available for user: $20.00"
+        end
+      end
+    end
+  end
 end

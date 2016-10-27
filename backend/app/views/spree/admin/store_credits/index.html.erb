@@ -15,7 +15,7 @@
     <strong><%= Spree.t("admin.store_credits.current_balance") %>: </strong><%= @user.display_total_available_store_credit %>
   </div>
 
-  <table>
+  <table id="sc-table">
     <thead>
       <th><%= Spree.t("admin.store_credits.credited_html_header") %></th>
       <th><%= Spree.t("admin.store_credits.used_html_header") %></th>
