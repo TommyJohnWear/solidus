@@ -13,6 +13,21 @@
     Warning: this change also deletes the `currency` database field (String)
     from the line items table, since it will not be used anymore.
 
+*   The OrderUpdater (as used by `order.update!`) now fully updates taxes.
+
+    Previously there were two different ways taxes were calculated: a "full"
+    and a "quick" calculation. The full calculation was performed with
+    `order.create_tax_charge!` and would determine which tax rates applied and
+    add taxes to items. The "quick" calculation was performed as part of an
+    order update, and would only update the tax amounts on existing line items
+    with taxes.
+
+    Now `order.update!` will perform the full calculation every time.
+    `order.create_tax_charge!` is now deprecated and has been made equivalent
+    to `order.update!`.
+
+    https://github.com/solidusio/solidus/pull/1479
+
 *   Added Spree::Config.tax_adjuster_class
 
     To allow easier customization of tax calculation in extensions or
