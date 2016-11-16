@@ -14,6 +14,7 @@ describe Spree::OrderCapturing do
 
       before do
         payment.pend!
+        order.save!
 
         allow_any_instance_of(Spree::Order).to receive(:thingamajig) do |order|
           changes_spy.change_callback_occured if order.changes.any?
