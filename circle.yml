@@ -1,12 +1,12 @@
 ---
 machine:
   environment:
-    DB: postgresql
+    DB: mysql
     DEFAULT_MAX_WAIT_TIME: 10
   services:
-    - postgresql
+    - mysql
   ruby:
-    version: 2.3.0
+    version: 2.2.5
   pre:
     - sudo curl --output /usr/local/bin/phantomjs https://s3.amazonaws.com/circle-downloads/phantomjs-2.1.1
 dependencies:
