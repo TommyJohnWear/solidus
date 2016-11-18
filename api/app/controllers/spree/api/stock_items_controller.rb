@@ -1,10 +1,10 @@
 module Spree
   module Api
     class StockItemsController < Spree::Api::BaseController
-      before_filter :load_stock_location, only: [:index, :show, :create]
+      before_action :load_stock_location, only: [:index, :show, :create]
 
       def index
-        @stock_items = scope.ransack(params[:q]).result.page(params[:page]).per(params[:per_page])
+        @stock_items = paginate(scope.ransack(params[:q]).result)
         respond_with(@stock_items)
       end
 
@@ -58,11 +58,12 @@ module Spree
       end
 
       def scope
-        includes = {:variant => [{ :option_values => :option_type }, :product] }
+        includes = { variant: [{ option_values: :option_type }, :product] }
         @stock_location.stock_items.accessible_by(current_ability, :read).includes(includes)
       end
 
       def stock_item_params
+        params.require(:stock_item).delete(:force)
         params.require(:stock_item).permit(permitted_stock_item_attributes)
       end
 

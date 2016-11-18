@@ -1,6 +1,7 @@
 module Spree
   class Exchange
     class UnableToCreateShipments < StandardError; end
+    extend ActiveModel::Naming
 
     def initialize(order, reimbursement_objects)
       @order = order
@@ -19,7 +20,7 @@ module Spree
 
     def perform!
       begin
-        shipments = Spree::Stock::Coordinator.new(@order, @reimbursement_objects.map(&:build_exchange_inventory_unit)).shipments
+        shipments = Spree::Config.stock.coordinator_class.new(@order, @reimbursement_objects.map(&:build_exchange_inventory_unit)).shipments
       rescue Spree::Order::InsufficientStock
         raise UnableToCreateShipments.new("Could not generate shipments for all items. Out of stock?")
       end
@@ -38,14 +39,5 @@ module Spree
     def self.param_key
       "spree_exchange"
     end
-
-    def self.model_name
-      Spree::Exchange
-    end
-
-    def model_name
-      self.class.model_name
-    end
-
   end
 end

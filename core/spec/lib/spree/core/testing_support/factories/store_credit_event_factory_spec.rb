@@ -7,9 +7,8 @@ RSpec.describe 'store credit event factory' do
   describe 'plain store credit event' do
     let(:factory) { :store_credit_event }
 
-
     it "builds successfully" do
-      expect(build factory).to be_a(factory_class)
+      expect(build(factory)).to be_a(factory_class)
     end
 
     # No test for .create, as this base factory misses an `action`

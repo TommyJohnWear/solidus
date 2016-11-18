@@ -1,107 +1,117 @@
 require 'spec_helper'
 
-describe Spree::TaxRate, :type => :model do
-  context "match" do
-    let(:order) { create(:order) }
-    let(:country) { create(:country) }
-    let(:tax_category) { create(:tax_category) }
-    let(:calculator) { Spree::Calculator::FlatRate.new }
+describe Spree::TaxRate, type: :model do
+  it { is_expected.to respond_to(:shipping_rate_taxes) }
 
-    it "should return an empty array when tax_zone is nil" do
-      allow(order).to receive_messages :tax_zone => nil
-      expect(Spree::TaxRate.match(order.tax_zone)).to eq([])
+  context '.for_address' do
+    let(:germany) { create(:country, iso: "DE") }
+    let(:germany_zone) { create(:zone, countries: [germany]) }
+    let!(:german_tax) { create(:tax_rate, zone: germany_zone) }
+    let(:france) { create(:country, iso: "FR") }
+    let(:france_zone) { create(:zone, countries: [france]) }
+    let!(:french_tax) { create(:tax_rate, zone: france_zone) }
+    let(:eu_zone) { create(:zone, countries: [germany, france]) }
+    let!(:eu_tax) { create(:tax_rate, zone: eu_zone) }
+    let(:usa) { create(:country, iso: "US") }
+    let(:us_zone) { create(:zone, countries: [usa]) }
+    let!(:us_tax) { create(:tax_rate, zone: us_zone) }
+    let(:new_york) { create(:state, country: usa, state_code: "NY") }
+    let(:new_york_zone) { create(:zone, states: [new_york]) }
+    let!(:new_york_tax) { create(:tax_rate, zone: new_york_zone) }
+    let(:alabama) { create(:state, country: usa, state_code: "AL") }
+    let(:alabama_zone) { create(:zone, states: [alabama]) }
+    let!(:alabama_tax) { create(:tax_rate, zone: alabama_zone) }
+
+    subject(:rates_for_address) { Spree::TaxRate.for_address(address) }
+
+    context 'when address is in germany' do
+      let(:address) { create(:address, country_iso_code: "DE") }
+      it { is_expected.to contain_exactly(german_tax, eu_tax) }
+    end
+
+    context 'when address is in france' do
+      let(:address) { create(:address, country_iso_code: "FR") }
+      it { is_expected.to contain_exactly(french_tax, eu_tax) }
+    end
+
+    context 'when address is in new york' do
+      let(:address) { create(:address, country_iso_code: "US", state_code: "NY") }
+      it { is_expected.to contain_exactly(new_york_tax, us_tax) }
+    end
+
+    context 'when address is in alabama' do
+      let(:address) { create(:address, country_iso_code: "US", state_code: "AL") }
+      it { is_expected.to contain_exactly(alabama_tax, us_tax) }
+    end
+
+    context 'when address is in alaska' do
+      let(:address) { create(:address, country_iso_code: "US", state_code: "AK") }
+      it { is_expected.to contain_exactly(us_tax) }
+    end
+  end
+
+  context ".for_zone" do
+    subject(:rates_for_zone) { Spree::TaxRate.for_zone(zone) }
+
+    context "when zone is nil" do
+      let(:zone) { nil }
+
+      it "should return an empty array" do
+        expect(subject).to eq([])
+      end
     end
 
     context "when no rate zones match the tax zone" do
-      before do
-        Spree::TaxRate.create(:amount => 1, :zone => create(:zone))
-      end
+      let(:rate_zone) { create(:zone, :with_country) }
+      let!(:rate) { create :tax_rate, zone: rate_zone }
 
       context "when there is no default tax zone" do
-        before do
-          @zone = create(:zone, :name => "Country Zone", :default_tax => false, :zone_members => [])
-          @zone.zone_members.create(:zoneable => country)
+        context "and the zone has no shared members with the rate zone" do
+          let(:zone) { create(:zone, :with_country) }
+
+          it "should return an empty array" do
+            expect(subject).to eq([])
+          end
         end
 
-        it "should return an empty array" do
-          allow(order).to receive_messages :tax_zone => @zone
-          expect(Spree::TaxRate.match(order.tax_zone)).to eq([])
+        context "and the zone has shared members with the rate zone" do
+          let(:zone) { create(:zone, countries: rate_zone.countries) }
+
+          it "should return the rate that matches the rate zone" do
+            expect(subject).to eq([rate])
+          end
         end
 
-        it "should return the rate that matches the rate zone" do
-          rate = Spree::TaxRate.create(
-            :amount => 1,
-            :zone => @zone,
-            :tax_category => tax_category,
-            :calculator => calculator
-          )
+        context "there is many rates that match the zone" do
+          let!(:rate2) { create :tax_rate, zone: rate_zone }
+          let(:zone) { create(:zone, countries: rate_zone.countries) }
 
-          allow(order).to receive_messages :tax_zone => @zone
-          expect(Spree::TaxRate.match(order.tax_zone)).to eq([rate])
-        end
-
-        it "should return all rates that match the rate zone" do
-          rate1 = Spree::TaxRate.create(
-            :amount => 1,
-            :zone => @zone,
-            :tax_category => tax_category,
-            :calculator => calculator
-          )
-
-          rate2 = Spree::TaxRate.create(
-            :amount => 2,
-            :zone => @zone,
-            :tax_category => tax_category,
-            :calculator => Spree::Calculator::FlatRate.new
-          )
-
-          allow(order).to receive_messages :tax_zone => @zone
-          expect(Spree::TaxRate.match(order.tax_zone)).to match_array([rate1, rate2])
+          it "should return all rates that match the rate zone" do
+            expect(subject).to match_array([rate, rate2])
+          end
         end
 
         context "when the tax_zone is contained within a rate zone" do
-          before do
-            sub_zone = create(:zone, :name => "State Zone", :zone_members => [])
-            sub_zone.zone_members.create(:zoneable => create(:state, :country => country))
-            allow(order).to receive_messages :tax_zone => sub_zone
-            @rate = Spree::TaxRate.create(
-              :amount => 1,
-              :zone => @zone,
-              :tax_category => tax_category,
-              :calculator => calculator
-            )
-          end
+          let(:country1) { create :country }
+          let(:country2) { create :country }
+          let(:rate_zone) { create(:zone, countries: [country1, country2]) }
+          let(:zone) { create(:zone, countries: [country1]) }
 
           it "should return the rate zone" do
-            expect(Spree::TaxRate.match(order.tax_zone)).to eq([@rate])
+            expect(subject).to eq([rate])
           end
         end
       end
 
       context "when there is a default tax zone" do
-        before do
-          @zone = create(:zone, :name => "Country Zone", :default_tax => true, :zone_members => [])
-          @zone.zone_members.create(:zoneable => country)
-        end
-
+        let(:default_zone) { create(:zone, :with_country) }
         let(:included_in_price) { false }
         let!(:rate) do
-          Spree::TaxRate.create(:amount => 1,
-                                :zone => @zone,
-                                :tax_category => tax_category,
-                                :calculator => calculator,
-                                :included_in_price => included_in_price)
+          create(:tax_rate, zone: default_zone, included_in_price: included_in_price)
         end
 
-        subject { Spree::TaxRate.match(order.tax_zone) }
-
-        context "when the order has the same tax zone" do
-          before do
-            allow(order).to receive_messages :tax_zone => @zone
-            allow(order).to receive_messages :tax_address => tax_address
-          end
-
-          let(:tax_address) { stub_model(Spree::Address) }
+        context "when the zone is the default zone" do
+          let(:zone) { default_zone }
 
           context "when the tax is not a VAT" do
             it { is_expected.to eq([rate]) }
@@ -109,528 +119,146 @@ describe Spree::TaxRate, :type => :model do
 
           context "when the tax is a VAT" do
             let(:included_in_price) { true }
+
             it { is_expected.to eq([rate]) }
           end
         end
 
-        context "when the order has a different tax zone" do
-          before do
-            allow(order).to receive_messages :tax_zone => create(:zone, :name => "Other Zone")
-            allow(order).to receive_messages :tax_address => tax_address
-          end
+        context "when the zone is outside the default zone" do
+          let(:zone) { create(:zone, :with_country) }
 
-          context "when the order has a tax_address" do
-            let(:tax_address) { stub_model(Spree::Address) }
-
-            context "when the tax is a VAT" do
-              let(:included_in_price) { true }
-              # The rate should match in this instance because:
-              # 1) It's the default rate (and as such, a negative adjustment should apply)
-              it { is_expected.to eq([rate]) }
-            end
-
-            context "when the tax is not VAT" do
-              it "returns no tax rate" do
-                expect(subject).to be_empty
-              end
-            end
-          end
-
-          context "when the order does not have a tax_address" do
-            let(:tax_address) { nil}
-
-            context "when the tax is a VAT" do
-              let(:included_in_price) { true }
-              # The rate should match in this instance because:
-              # 1) The order has no tax address by this stage
-              # 2) With no tax address, it has no tax zone
-              # 3) Therefore, we assume the default tax zone
-              # 4) This default zone has a default tax rate.
-              it { is_expected.to eq([rate]) }
-            end
-
-            context "when the tax is not a VAT" do
-              it { is_expected.to be_empty }
-            end
-          end
+          it { is_expected.to be_empty }
         end
       end
     end
   end
 
-  context ".adjust" do
-    let(:order) { stub_model(Spree::Order) }
-    let(:tax_category_1) { stub_model(Spree::TaxCategory) }
-    let(:tax_category_2) { stub_model(Spree::TaxCategory) }
-    let(:rate_1) { stub_model(Spree::TaxRate, :tax_category => tax_category_1) }
-    let(:rate_2) { stub_model(Spree::TaxRate, :tax_category => tax_category_2) }
-
-    context "with line items" do
-      let(:line_item) do
-        stub_model(Spree::LineItem,
-          :price => 10.0,
-          :quantity => 1,
-          :tax_category => tax_category_1,
-          :variant => stub_model(Spree::Variant)
-        )
-      end
-
-      let(:line_items) { [line_item] }
-
-      before do
-        allow(Spree::TaxRate).to receive_messages :match => [rate_1, rate_2]
-      end
-
-      it "should only apply adjustments for matching rates" do
-        expect(rate_1).to receive(:adjust)
-        expect(rate_2).not_to receive(:adjust)
-        Spree::TaxRate.adjust(order.tax_zone, line_items)
-      end
+  describe "#adjust" do
+    let(:taxable_address) { create(:address) }
+    let(:order) { create(:order_with_line_items, ship_address: order_address) }
+    let(:tax_zone) { create(:zone, countries: [taxable_address.country], default_tax: default_tax) }
+    let(:foreign_address) { create(:address, country_iso_code: "CA") }
+    let!(:foreign_zone) { create(:zone, countries: [foreign_address.country], default_tax: false) }
+    let(:tax_rate) do
+      create(:tax_rate,
+        included_in_price: included_in_price,
+        show_rate_in_label: show_rate_in_label,
+        amount: 0.125,
+        zone: tax_zone
+      )
     end
 
-    context "with shipments" do
-      let(:shipments) { [stub_model(Spree::Shipment, :cost => 10.0, :tax_category => tax_category_1)] }
+    let(:item) { order.line_items.first }
 
+    describe 'adjustments' do
       before do
-        allow(Spree::TaxRate).to receive_messages :match => [rate_1, rate_2]
+        # Please remove this silencing once we remove `Spree::Zone.default_tax`
+        Spree::Deprecation.silence do
+          tax_rate.adjust(nil, item)
+        end
       end
 
-      it "should apply adjustments for matching rates" do
-        expect(rate_1).to receive(:adjust)
-        expect(rate_2).not_to receive(:adjust)
-        Spree::TaxRate.adjust(order.tax_zone, shipments)
-      end
-    end
-  end
+      let(:adjustment_label) { item.adjustments.tax.first.label }
 
-  # While the above test is nice and fast - let me tell you a story or two here.
-  context ".adjust" do
-    let(:order) { create :order }
-    let(:book_product) { create :product, price: 20, name: "Book", tax_category: books_category }
-    let(:download_product) { create :product, price: 10, name: "Download", tax_category: digital_category }
-    let(:sweater_product) { create :product, price: 30, name: "Download", tax_category: normal_category }
-    let(:book) { book_product.master }
-    let(:download) { download_product.master }
-    let(:sweater) { sweater_product.master }
-    let(:books_category) { create :tax_category, name: "Books" }
-    let(:normal_category) { create :tax_category, name: "Normal" }
-    let(:digital_category) { create :tax_category, name: "Digital Goods" }
+      context 'for included rates' do
+        let(:included_in_price) { true }
+        let(:default_tax) { true }
 
-    context 'selling from germany' do
-      let(:germany) { create :country, iso: "DE" }
-      # The weird default_tax boolean is what makes this context one with default included taxes
-      let!(:germany_zone) { create :zone, countries: [germany], default_tax: true }
-      let(:romania) { create(:country, iso: "RO") }
-      let(:romania_zone) { create(:zone, countries: [romania] ) }
-      let(:eu_zone)  { create(:zone, countries: [romania, germany]) }
-      let(:world_zone) { create(:zone, :with_country) }
+        context 'when they are not refunded' do
+          let(:order_address) { taxable_address }
 
-      let!(:german_book_vat) do
-        create(
-          :tax_rate,
-          included_in_price: true,
-          amount: 0.07,
-          tax_category: books_category,
-          zone: eu_zone
-        )
-      end
-      let!(:german_normal_vat) do
-        create(
-          :tax_rate,
-          included_in_price: true,
-          amount: 0.19,
-          tax_category: normal_category,
-          zone: eu_zone
-        )
-      end
-      let!(:german_digital_vat) do
-        create(
-          :tax_rate,
-          included_in_price: true,
-          amount: 0.19,
-          tax_category: digital_category,
-          zone: germany_zone
-        )
-      end
-      let!(:romanian_digital_vat) do
-        create(
-          :tax_rate,
-          included_in_price: true,
-          amount: 0.24,
-          tax_category: digital_category,
-          zone: romania_zone
-        )
-      end
+          context 'with show rate in label' do
+            let(:show_rate_in_label) { true }
 
-      before do
-        allow(order).to receive(:tax_zone) { tax_zone }
-        order.contents.add(variant)
-        Spree::TaxRate.adjust(order.tax_zone, order.line_items)
-      end
+            it 'shows the rate in the label' do
+              expect(adjustment_label).to include("12.500%")
+            end
 
-      let(:line_item) { order.line_items.first }
-
-      context 'to germany' do
-        let(:tax_zone) { germany_zone }
-
-        context 'an order with a book' do
-          let(:variant) { book }
-
-          it 'still has the original price' do
-            expect(line_item.price).to eq(20)
+            it 'adds a remark that the rate is included in the price' do
+              expect(adjustment_label).to include("Included in Price")
+            end
           end
 
-          it 'has one tax adjustment' do
-            expect(line_item.adjustments.tax.count).to eq(1)
-          end
+          context 'with show rate in label turned off' do
+            let(:show_rate_in_label) { false }
 
-          it 'has 1.13 cents of included tax' do
-            expect(line_item.included_tax_total).to eq(1.31)
+            it 'does not show the rate in the label' do
+              expect(adjustment_label).not_to include("12.500%")
+            end
+
+            it 'does not have two consecutive spaces' do
+              expect(adjustment_label).not_to include("  ")
+            end
+
+            it 'adds a remark that the rate is included in the price' do
+              expect(adjustment_label).to include("Included in Price")
+            end
           end
         end
 
-        context 'an order with a sweater' do
-          let(:variant) { sweater }
+        context 'when they are refunded' do
+          let(:order_address) { foreign_address }
 
-          it 'still has the original price' do
-            expect(line_item.price).to eq(30)
+          context 'with show rate in label' do
+            let(:show_rate_in_label) { true }
+
+            it 'shows the word "refund" in the label' do
+              expect(adjustment_label).to include("Refund")
+            end
+
+            it 'shows the rate in the label' do
+              expect(adjustment_label).to include("12.500%")
+            end
+
+            it 'adds a remark that the rate is included in the price' do
+              expect(adjustment_label).to include("Included in Price")
+            end
           end
 
-          it 'has one tax adjustment' do
-            expect(line_item.adjustments.tax.count).to eq(1)
-          end
+          context 'with show rate in label turned off' do
+            let(:show_rate_in_label) { false }
 
-          it 'has 4,78 of included tax' do
-            expect(line_item.included_tax_total).to eq(4.79)
-          end
-        end
+            it 'shows the word "refund" in the label' do
+              expect(adjustment_label).to include("Refund")
+            end
 
-        context 'an order with a download' do
-          let(:variant) { download }
+            it 'does not show the rate in the label' do
+              expect(adjustment_label).not_to include("12.500%")
+            end
 
-          it 'still has the original price' do
-            expect(line_item.price).to eq(10)
-          end
-
-          it 'has one tax adjustment' do
-            expect(line_item.adjustments.tax.count).to eq(1)
-          end
-
-          it 'has 1.60 of included tax' do
-            expect(line_item.included_tax_total).to eq(1.60)
+            it 'adds a remark that the rate is included in the price' do
+              expect(adjustment_label).to include("Included in Price")
+            end
           end
         end
       end
 
-      context 'to romania' do
-        let(:tax_zone) { romania_zone }
+      context 'for additional rates' do
+        let(:included_in_price) { false }
+        let(:order_address) { taxable_address }
+        let(:default_tax) { false }
 
-        context 'an order with a book' do
-          let(:variant) { book }
+        context 'with show rate in label' do
+          let(:show_rate_in_label) { true }
 
-          it 'still has the original price' do
-            expect(line_item.price).to eq(20)
+          it 'shows the rate in the label' do
+            expect(adjustment_label).to include("12.500%")
           end
 
-          it 'is adjusted to the original price' do
-            expect(line_item.total).to eq(20)
-          end
-
-          it 'has one tax adjustment' do
-            expect(line_item.adjustments.tax.count).to eq(1)
-          end
-
-          it 'has 1.13 cents of included tax' do
-            expect(line_item.included_tax_total).to eq(1.31)
-          end
-
-          it 'has a constant amount pre tax' do
-            expect(line_item.pre_tax_amount).to eq(18.69)
+          it 'does not add a remark that the rate is included in the price' do
+            expect(adjustment_label).not_to include("Included in Price")
           end
         end
 
-        context 'an order with a sweater' do
-          let(:variant) { sweater }
+        context 'with show rate in label turned off' do
+          let(:show_rate_in_label) { false }
 
-          it 'still has the original price' do
-            expect(line_item.price).to eq(30)
+          it 'does not show the rate in the label' do
+            expect(adjustment_label).not_to include("12.500%")
           end
 
-          it 'has one tax adjustment' do
-            expect(line_item.adjustments.tax.count).to eq(1)
-          end
-
-          # This test fails intermittently - it's a matter of luck
-          xit 'has 4.79 of included tax' do
-            expect(line_item.included_tax_total).to eq(4.79)
-          end
-
-          it 'has a constant amount pre tax' do
-            expect(line_item.pre_tax_amount).to eq(25.21)
-          end
-        end
-
-        context 'an order with a download' do
-          let(:variant) { download }
-
-          it 'still has an adjusted price for romania' do
-            pending "waiting for the MOSS refactoring"
-            expect(line_item.price).to eq(10.42)
-          end
-
-          it 'has one tax adjustment' do
-            expect(line_item.adjustments.tax.count).to eq(1)
-          end
-
-          # Fails intermittently - xit'ed for the time being
-          xit 'has 2.02 of included tax' do
-            expect(line_item.included_tax_total).to eq(2.02)
-          end
-
-          it 'has a constant amount pre tax' do
-            pending 'but it changes to 8.06, because Spree thinks both VATs apply'
-            expect(line_item.pre_tax_amount).to eq(8.40)
-          end
-        end
-      end
-
-      # International delivery, no tax applies whatsoever
-      context 'to anywhere else in the world' do
-        let(:tax_zone) { world_zone }
-
-        context 'an order with a book' do
-          let(:variant) { book }
-
-          it 'should sell at the net price' do
-            pending "Prices have to be adjusted"
-            expect(line_item.price).to eq(18.69)
-          end
-
-          it 'is adjusted to the net price' do
-            expect(line_item.total).to eq(18.69)
-          end
-
-          it 'has no tax adjustments' do
-            pending "Right now it gets a refund"
-            expect(line_item.adjustments.tax.count).to eq(0)
-          end
-
-          it 'has no included tax' do
-            expect(line_item.included_tax_total).to eq(0)
-          end
-
-          it 'has no additional tax' do
-            pending 'but there is a refund, still'
-            expect(line_item.additional_tax_total).to eq(0)
-          end
-
-          it 'has a constant amount pre tax' do
-            expect(line_item.pre_tax_amount).to eq(18.69)
-          end
-        end
-
-        context 'an order with a sweater' do
-          let(:variant) { sweater }
-
-          it 'should sell at the net price' do
-            pending 'but prices are not adjusted according to the zone yet'
-            expect(line_item.price).to eq(25.21)
-          end
-
-          it 'has no tax adjustments' do
-            pending 'but it has a refund'
-            expect(line_item.adjustments.tax.count).to eq(0)
-          end
-
-          it 'has no included tax' do
-            expect(line_item.included_tax_total).to eq(0)
-          end
-
-          it 'has no additional tax' do
-            pending 'but it has a refund for included taxes wtf'
-            expect(line_item.additional_tax_total).to eq(0)
-          end
-
-          it 'has a constant amount pre tax' do
-            expect(line_item.pre_tax_amount).to eq(25.21)
-          end
-        end
-
-        context 'an order with a download' do
-          let(:variant) { download }
-
-          it 'should sell at the net price' do
-            pending 'but prices are not adjusted yet'
-            expect(line_item.price).to eq(8.40)
-          end
-
-          it 'has no tax adjustments' do
-            pending 'but a refund is created'
-            expect(line_item.adjustments.tax.count).to eq(0)
-          end
-
-          it 'has no included tax' do
-            expect(line_item.included_tax_total).to eq(0)
-          end
-
-          it 'has no additional tax' do
-            pending 'but an tax refund that disguises as additional tax is created'
-            expect(line_item.additional_tax_total).to eq(0)
-          end
-
-          it 'has a constant amount pre tax' do
-            expect(line_item.pre_tax_amount).to eq(8.40)
-          end
-        end
-      end
-    end
-
-    # Choosing New York here because in the US, states matter
-    context 'selling from new york' do
-      let(:new_york) { create(:state) }
-      let(:united_states) { create(:country, states: [new_york]) }
-      let(:new_york_zone) { create(:zone, states: [new_york]) }
-      let(:unites_states_zone) { create(:zone, countries: [united_states])}
-      # Creating two rates for books here to
-      # mimick the existing specs
-      let!(:new_york_books_tax) do
-        create(
-          :tax_rate,
-          tax_category: books_category,
-          zone: new_york_zone,
-          included_in_price: false,
-          amount: 0.05
-        )
-      end
-
-      let!(:federal_books_tax) do
-        create(
-          :tax_rate,
-          tax_category: books_category,
-          zone: unites_states_zone,
-          included_in_price: false,
-          amount: 0.10
-        )
-      end
-
-      let!(:federal_digital_tax) do
-        create(
-          :tax_rate,
-          tax_category: digital_category,
-          zone: unites_states_zone,
-          included_in_price: false,
-          amount: 0.20
-        )
-      end
-
-      before do
-        allow(order).to receive(:tax_zone) { tax_zone }
-        order.contents.add(variant)
-        Spree::TaxRate.adjust(order.tax_zone, order.line_items)
-      end
-
-      let(:line_item) { order.line_items.first }
-
-      context 'to new york' do
-        let(:tax_zone) { new_york_zone }
-
-        # A fictional case for an item with two applicable rates
-        context 'an order with a book' do
-          let(:variant) { book }
-
-          it 'still has the original price' do
-            expect(line_item.price).to eq(20)
-          end
-
-          it 'sells for the line items amount plus additional tax' do
-            expect(line_item.total).to eq(23)
-          end
-
-          it 'has two tax adjustments' do
-            expect(line_item.adjustments.tax.count).to eq(2)
-          end
-
-          it 'has no included tax' do
-            expect(line_item.included_tax_total).to eq(0)
-          end
-
-          it 'has 15% additional tax' do
-            expect(line_item.additional_tax_total).to eq(3)
-          end
-
-          it "should delete adjustments for open order when taxrate is deleted" do
-            new_york_books_tax.destroy!
-            federal_books_tax.destroy!
-            expect(line_item.adjustments.count).to eq(0)
-          end
-
-          it "should not delete adjustments for complete order when taxrate is deleted" do
-            order.update_column :completed_at, Time.now
-            new_york_books_tax.destroy!
-            federal_books_tax.destroy!
-            expect(line_item.adjustments.count).to eq(2)
-          end
-        end
-
-        # This is a fictional case for when no taxes apply at all.
-        context 'an order with a sweater' do
-          let(:variant) { sweater }
-
-          it 'still has the original price' do
-            expect(line_item.price).to eq(30)
-          end
-
-          it 'sells for the line items amount plus additional tax' do
-            expect(line_item.total).to eq(30)
-          end
-
-          it 'has no tax adjustments' do
-            expect(line_item.adjustments.tax.count).to eq(0)
-          end
-
-          it 'has no included tax' do
-            expect(line_item.included_tax_total).to eq(0)
-          end
-
-          it 'has no additional tax' do
-            expect(line_item.additional_tax_total).to eq(0)
-          end
-        end
-
-        # A fictional case with one applicable rate
-        context 'an order with a download' do
-          let(:variant) { download }
-
-          it 'still has the original price' do
-            expect(line_item.price).to eq(10)
-          end
-
-          it 'sells for the line items amount plus additional tax' do
-            expect(line_item.total).to eq(12)
-          end
-
-          it 'has one tax adjustments' do
-            expect(line_item.adjustments.tax.count).to eq(1)
-          end
-
-          it 'has no included tax' do
-            expect(line_item.included_tax_total).to eq(0)
-          end
-
-          it 'has 15% additional tax' do
-            expect(line_item.additional_tax_total).to eq(2)
-          end
-        end
-      end
-
-      context 'when no tax zone is given' do
-        let(:tax_zone) { nil }
-
-        context 'and we buy a book' do
-          let(:variant) { book }
-
-          it 'does not create adjustments' do
-            expect(line_item.adjustments.count).to eq(0)
+          it 'does not add a remark that the rate is included in the price' do
+            expect(adjustment_label).not_to include("Included in Price")
           end
         end
       end

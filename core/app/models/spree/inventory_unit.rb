@@ -1,4 +1,6 @@
 module Spree
+  # Tracks the state of line items' fulfillment.
+  #
   class InventoryUnit < Spree::Base
     PRE_SHIPMENT_STATES = %w(backordered on_hand)
     POST_SHIPMENT_STATES = %w(returned)
@@ -75,7 +77,7 @@ module Spree
       inventory_units.map do |iu|
         iu.update_columns(
           pending: false,
-          updated_at: Time.current,
+          updated_at: Time.current
         )
       end
     end
@@ -113,35 +115,35 @@ module Spree
       return_items.not_expired.any?(&:exchange_requested?)
     end
 
+    def allow_ship?
+      on_hand?
+    end
+
     private
 
-      def allow_ship?
-        self.on_hand?
+    def fulfill_order
+      reload
+      order.fulfill!
+    end
+
+    def percentage_of_line_item
+      1 / BigDecimal.new(line_item.quantity)
+    end
+
+    def current_return_item
+      return_items.not_cancelled.first
+    end
+
+    def ensure_can_destroy
+      if !backordered? && !on_hand?
+        errors.add(:state, :cannot_destroy, state: state)
+        throw :abort
       end
 
-      def fulfill_order
-        self.reload
-        order.fulfill!
+      unless shipment.pending?
+        errors.add(:base, :cannot_destroy_shipment_state, state: shipment.state)
+        throw :abort
       end
-
-      def percentage_of_line_item
-        1 / BigDecimal.new(line_item.quantity)
-      end
-
-      def current_return_item
-        return_items.not_cancelled.first
-      end
-
-      def ensure_can_destroy
-        if !backordered? && !on_hand?
-          errors.add(:state, :cannot_destroy, state: self.state)
-          return false
-        end
-
-        unless shipment.pending?
-          errors.add(:base, :cannot_destroy_shipment_state, state: shipment.state)
-          return false
-        end
-      end
+    end
   end
 end

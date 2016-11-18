@@ -13,7 +13,6 @@ nav.menu {
         position: relative;
         text-align: left;
         border: 1px solid transparent;
-        text-transform: uppercase;
         font-weight: $font-weight-bold;
         font-size: 90%;
       }
@@ -31,6 +30,23 @@ nav.menu {
   border-right: $border-sidebar;
   background: $color-sidebar-bg;
   z-index: $z-index-navbar-flyout;
+}
+
+.admin-nav-header {
+  padding: 15px;
+  height: 58px; // height of .page-title
+  box-sizing: content-box;
+  background-color: $color-1;
+  border-bottom: 1px solid $color-border;
+
+  a {
+    display: inline-block;
+    line-height: 58px;
+  }
+
+  img {
+    vertical-align: middle;
+  }
 }
 
 .admin-nav-menu {

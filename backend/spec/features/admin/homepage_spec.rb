@@ -1,7 +1,6 @@
 require 'spec_helper'
 
-describe "Homepage", :type => :feature do
-
+describe "Homepage", type: :feature do
   context 'as admin user' do
     stub_authorization!
 
@@ -44,23 +43,19 @@ describe "Homepage", :type => :feature do
         within('.selected .admin-subnav') { page.find_link("Option Types")['/admin/option_types'] }
       end
 
-      it "should have a link to properties" do
-        within('.selected .admin-subnav') { page.find_link("Properties")['/admin/properties'] }
+      it "should have a link to property types" do
+        within('.selected .admin-subnav') { page.find_link("Property Types")['/admin/properties'] }
       end
 
-      it "should have a link to prototypes" do
-        within('.selected .admin-subnav') { page.find_link("Prototypes")['/admin/prototypes'] }
-      end
     end
   end
 
   context 'as fakedispatch user' do
-
     before do
       allow_any_instance_of(Spree::Admin::BaseController).to receive(:spree_current_user).and_return(nil)
     end
 
-    custom_authorization! do |user|
+    custom_authorization! do |_user|
       can [:admin, :home], :dashboards
       can [:admin, :edit, :index, :read], Spree::Order
     end
@@ -74,5 +69,4 @@ describe "Homepage", :type => :feature do
       expect(page).not_to have_link('Settings')
     end
   end
-
 end

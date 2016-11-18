@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe "Option Types", :type => :feature do
+describe "Option Types", type: :feature do
   stub_authorization!
 
   before(:each) do
@@ -10,8 +10,8 @@ describe "Option Types", :type => :feature do
 
   context "listing option types" do
     it "should list existing option types" do
-      create(:option_type, :name => "tshirt-color", :presentation => "Color")
-      create(:option_type, :name => "tshirt-size", :presentation => "Size")
+      create(:option_type, name: "tshirt-color", presentation: "Color")
+      create(:option_type, name: "tshirt-size", presentation: "Size")
 
       click_link "Option Types"
       within("table#listing_option_types") do
@@ -24,12 +24,12 @@ describe "Option Types", :type => :feature do
   end
 
   context "creating a new option type" do
-    it "should allow an admin to create a new option type", :js => true do
+    it "should allow an admin to create a new option type", js: true do
       click_link "Option Types"
       click_link "new_option_type_link"
-      expect(page).to have_content("NEW OPTION TYPE")
-      fill_in "option_type_name", :with => "shirt colors"
-      fill_in "option_type_presentation", :with => "colors"
+      expect(page).to have_content("New Option Type")
+      fill_in "option_type_name", with: "shirt colors"
+      fill_in "option_type_presentation", with: "colors"
       click_button "Create"
       expect(page).to have_content("successfully created!")
 
@@ -43,13 +43,13 @@ describe "Option Types", :type => :feature do
 
   context "editing an existing option type" do
     it "should allow an admin to update an existing option type" do
-      create(:option_type, :name => "tshirt-color", :presentation => "Color")
-      create(:option_type, :name => "tshirt-size", :presentation => "Size")
+      create(:option_type, name: "tshirt-color", presentation: "Color")
+      create(:option_type, name: "tshirt-size", presentation: "Size")
       click_link "Option Types"
       within('table#listing_option_types') do
         find('tr', text: 'Size').click_link "Edit"
       end
-      fill_in "option_type_name", :with => "foo-size 99"
+      fill_in "option_type_name", with: "foo-size 99"
       click_button "Update"
       expect(page).to have_content("successfully updated!")
       expect(page).to have_content("foo-size 99")
@@ -57,11 +57,11 @@ describe "Option Types", :type => :feature do
   end
 
   # Regression test for https://github.com/spree/spree/issues/2277
-  it "can remove an option value from an option type", :js => true do
+  it "can remove an option value from an option type", js: true do
     create(:option_value)
     click_link "Option Types"
     within('table#listing_option_types') { click_icon :edit }
-    expect(page).to have_content("Editing Option Type")
+    expect(page).to have_content("ProductsOption Typesfoo-size-")
     expect(page).to have_css("tbody#option_values tr", count: 1)
     within("tbody#option_values") do
       find('.spree_remove_fields').click
@@ -84,7 +84,7 @@ describe "Option Types", :type => :feature do
   end
 
   # Regression test for https://github.com/spree/spree/issues/3204
-  it "can remove a non-persisted option value from an option type", :js => true do
+  it "can remove a non-persisted option value from an option type", js: true do
     create(:option_type)
     click_link "Option Types"
     within('table#listing_option_types') { click_icon :edit }
@@ -111,5 +111,4 @@ describe "Option Types", :type => :feature do
     # Assert that the field is hidden automatically
     expect(page).to have_css("tbody#option_values tr", count: 0)
   end
-
 end

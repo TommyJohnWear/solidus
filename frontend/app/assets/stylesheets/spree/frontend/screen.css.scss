@@ -4,6 +4,7 @@
 //= depend_on_asset "fontawesome-webfont.svg"
 //= depend_on_asset "spree/frontend/cart.png"
 
+@import 'spree/frontend/skeleton';
 @import 'spree/frontend/variables';
 @import 'font-awesome';
 
@@ -919,7 +920,7 @@ p[data-hook="use_billing"] {
   &.success {
     color: $c_green;
   }
-  &.error {
+  &.error, &.alert {
     color: $c_red;
   }
 }

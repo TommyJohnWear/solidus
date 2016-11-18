@@ -12,6 +12,8 @@ module Spree
     after_save :touch, if: :changed?
     after_touch :touch_all_variants
 
+    delegate :name, :presentation, to: :option_type, prefix: :option_type
+
     self.whitelisted_ransackable_attributes = ['presentation']
 
     # Updates the updated_at column on all the variants associated with this
@@ -23,7 +25,7 @@ module Spree
     # @return [String] a string representation of all option value and its
     #   option type
     def presentation_with_option_type
-      "#{self.option_type.presentation} - #{self.presentation}"
+      "#{option_type.presentation} - #{presentation}"
     end
   end
 end

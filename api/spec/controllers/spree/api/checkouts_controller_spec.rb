@@ -45,7 +45,7 @@ module Spree
         expect(order.state).to eq "cart"
         expect(order.email).not_to be_nil
         request.headers["X-Spree-Order-Token"] = order.guest_token
-        api_put :update, :id => order.to_param
+        api_put :update, id: order.to_param
         expect(order.reload.state).to eq "address"
       end
 
@@ -165,8 +165,8 @@ module Spree
 
       it "returns errors when source is required and missing" do
         order.update_column(:state, "payment")
-        api_put :update, :id => order.to_param, :order_token => order.guest_token,
-          :order => { :payments_attributes => [{ :payment_method_id => @payment_method.id }] }
+        api_put :update, id: order.to_param, order_token: order.guest_token,
+          order: { payments_attributes: [{ payment_method_id: @payment_method.id }] }
         expect(response.status).to eq(422)
         source_errors = json_response['errors']['payments.source']
         expect(source_errors).to include("can't be blank")
@@ -181,10 +181,10 @@ module Spree
               payments_attributes: [
                 {
                   payment_method_id: @payment_method.id.to_s,
-                  source_attributes: attributes_for(:credit_card),
-                },
-              ],
-            },
+                  source_attributes: attributes_for(:credit_card)
+                }
+              ]
+            }
           }
         end
 
@@ -208,10 +208,10 @@ module Spree
               payments_attributes: [
                 {
                   payment_method_id: @payment_method.id.to_s,
-                  source_attributes: attributes_for(:credit_card),
-                },
-              ],
-            },
+                  source_attributes: attributes_for(:credit_card)
+                }
+              ]
+            }
           }
         end
 
@@ -229,15 +229,15 @@ module Spree
               order_token: order.guest_token,
               order: {
                 payments_attributes: [
-                  { payment_method_id: @payment_method.id.to_s },
-                ],
+                  { payment_method_id: @payment_method.id.to_s }
+                ]
               },
-              payment_source: { @payment_method.id.to_s => attributes_for(:credit_card) },
+              payment_source: { @payment_method.id.to_s => attributes_for(:credit_card) }
             }
           end
 
           it "succeeds" do
-            ActiveSupport::Deprecation.silence do
+            Spree::Deprecation.silence do
               api_put(:update, params)
             end
             expect(response.status).to eq(200)
@@ -260,10 +260,10 @@ module Spree
               payments_attributes: [
                 {
                   payment_method_id: @payment_method.id.to_s,
-                  source_attributes: {name: "Spree"},
-                },
-              ],
-            },
+                  source_attributes: { name: "Spree" }
+                }
+              ]
+            }
           }
         end
 
@@ -272,7 +272,7 @@ module Spree
 
           expect(response.status).to eq(422)
           cc_errors = json_response['errors']['payments.Credit Card']
-          expect(cc_errors).to include("Number can't be blank")
+          expect(cc_errors).to include("Card Number can't be blank")
           expect(cc_errors).to include("Month is not a number")
           expect(cc_errors).to include("Year is not a number")
           expect(cc_errors).to include("Verification Value can't be blank")
@@ -285,23 +285,23 @@ module Spree
               order_token: order.guest_token,
               order: {
                 payments_attributes: [
-                  {payment_method_id: @payment_method.id.to_s},
-                ],
+                  { payment_method_id: @payment_method.id.to_s }
+                ]
               },
               payment_source: {
-                @payment_method.id.to_s => {name: "Spree"},
-              },
+                @payment_method.id.to_s => { name: "Spree" }
+              }
             }
           end
 
           it 'returns errors' do
-            ActiveSupport::Deprecation.silence do
+            Spree::Deprecation.silence do
               api_put(:update, params)
             end
 
             expect(response.status).to eq(422)
             cc_errors = json_response['errors']['payments.Credit Card']
-            expect(cc_errors).to include("Number can't be blank")
+            expect(cc_errors).to include("Card Number can't be blank")
             expect(cc_errors).to include("Month is not a number")
             expect(cc_errors).to include("Year is not a number")
             expect(cc_errors).to include("Verification Value can't be blank")
@@ -323,11 +323,11 @@ module Spree
                 {
                   source_attributes: {
                     existing_card_id: credit_card.id.to_s,
-                    verification_value: '456',
+                    verification_value: '456'
                   }
-                },
-              ],
-            },
+                }
+              ]
+            }
           }
         end
 
@@ -355,9 +355,9 @@ module Spree
               id: order.to_param,
               order_token: order.guest_token,
               order: {
-                existing_card: credit_card.id.to_s,
+                existing_card: credit_card.id.to_s
               },
-              cvc_confirm: '456',
+              cvc_confirm: '456'
             }
           end
 
@@ -369,7 +369,7 @@ module Spree
               receive(:verification_value=).with('456').and_call_original
             )
 
-            ActiveSupport::Deprecation.silence do
+            Spree::Deprecation.silence do
               api_put(:update, params)
             end
 
@@ -377,14 +377,6 @@ module Spree
             expect(order.credit_cards).to match_array [credit_card]
           end
         end
-      end
-
-      it "can transition from confirm to complete" do
-        order.update_columns(completed_at: Time.current, state: 'complete')
-        allow_any_instance_of(Spree::Order).to receive_messages(payment_required?: false)
-        api_put :update, id: order.to_param, order_token: order.guest_token
-        expect(json_response['state']).to eq('complete')
-        expect(response.status).to eq(200)
       end
 
       it "returns the order if the order is already complete" do
@@ -425,7 +417,7 @@ module Spree
         order.update_column(:state, "payment")
         expect(PromotionHandler::Coupon).to receive(:new).with(order).and_call_original
         expect_any_instance_of(PromotionHandler::Coupon).to receive(:apply).and_return({ coupon_applied?: true })
-        api_put :update, :id => order.to_param, order_token: order.guest_token, order: { coupon_code: "foobar" }
+        api_put :update, id: order.to_param, order_token: order.guest_token, order: { coupon_code: "foobar" }
       end
     end
 
@@ -453,7 +445,7 @@ module Spree
           email: nil
         )
 
-        api_put :next, :id => order.to_param, :order_token => order.guest_token
+        api_put :next, id: order.to_param, order_token: order.guest_token
         expect(response.status).to eq(422)
         expect(json_response['error']).to match(/could not be transitioned/)
       end
@@ -462,11 +454,11 @@ module Spree
     # NOTE: Temporarily making "next" behave just like "complete" when order is in confirm state
     #       Using "next" this way is deprecated.
     [:next, :complete].each do |action|
-      context "#{action}" do
+      context action.to_s do
         context "with order in confirm state" do
           subject do
             if action == :next
-              ActiveSupport::Deprecation.silence do
+              Spree::Deprecation.silence do
                 api_put action, params
               end
             else
@@ -474,7 +466,7 @@ module Spree
             end
           end
 
-          let(:params) { {id: order.to_param, order_token: order.guest_token} }
+          let(:params) { { id: order.to_param, order_token: order.guest_token } }
           let(:order) { create(:order_with_line_items) }
 
           before do
@@ -482,7 +474,7 @@ module Spree
           end
 
           it "can transition from confirm to complete" do
-            allow_any_instance_of(Spree::Order).to receive_messages(:payment_required? => false)
+            allow_any_instance_of(Spree::Order).to receive_messages(payment_required?: false)
             subject
             expect(json_response['state']).to eq('complete')
             expect(response.status).to eq(200)
@@ -501,7 +493,7 @@ module Spree
               # api_put :complete, :id => order.to_param, :order_token => order.token, :expected_total => order.total + 1
               subject
               expect(response.status).to eq(400)
-              expect(json_response['errors']['expected_total']).to include(Spree.t(:expected_total_mismatch, :scope => 'api.order'))
+              expect(json_response['errors']['expected_total']).to include(Spree.t(:expected_total_mismatch, scope: 'api.order'))
             end
           end
         end
@@ -511,7 +503,7 @@ module Spree
     context "PUT 'advance'" do
       let!(:order) { create(:order_with_line_items) }
 
-      it 'continues to advance advances an order while it can move forward' do
+      it 'continues to advance an order while it can move forward' do
         expect_any_instance_of(Spree::Order).to receive(:next).exactly(3).times.and_return(true, true, false)
         api_put :advance, id: order.to_param, order_token: order.guest_token
       end

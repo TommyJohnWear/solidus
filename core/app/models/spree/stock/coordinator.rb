@@ -10,15 +10,18 @@ module Spree
       end
 
       def shipments
-        packages.map do |package|
-          package.to_shipment.tap { |s| s.address = order.ship_address }
-        end
+        packages.map(&:shipment)
       end
+
+      private
 
       def packages
         packages = build_location_configured_packages
         packages = build_packages(packages)
         packages = prioritize_packages(packages)
+        packages.each do |package|
+          package.shipment = package.to_shipment
+        end
         packages = estimate_packages(packages)
         validate_packages(packages)
         packages
@@ -35,7 +38,7 @@ module Spree
       # through the rest of the packing / prioritization, lets just put them
       # in packages we know they should be in and deal with other automatically-
       # handled inventory units otherwise.
-      def build_location_configured_packages(packages = Array.new)
+      def build_location_configured_packages(packages = [])
         order.order_stock_locations.where(shipment_fulfilled: false).group_by(&:stock_location).each do |stock_location, stock_location_configurations|
           units = stock_location_configurations.flat_map do |stock_location_configuration|
             unallocated_inventory_units.select { |iu| iu.variant == stock_location_configuration.variant }.take(stock_location_configuration.quantity)
@@ -56,7 +59,7 @@ module Spree
       # for the given order
       #
       # Returns an array of Package instances
-      def build_packages(packages = Array.new)
+      def build_packages(packages = [])
         stock_location_variant_ids.each do |stock_location, variant_ids|
           units_for_location = unallocated_inventory_units.select { |unit| variant_ids.include?(unit.variant_id) }
           packer = build_packer(stock_location, units_for_location)
@@ -64,8 +67,6 @@ module Spree
         end
         packages
       end
-
-      private
 
       # This finds the variants we're looking for in each active stock location.
       # It returns a hash like:
@@ -99,13 +100,11 @@ module Spree
         # build the final lookup hash of
         #   {<stock location> => <set of variant ids>, ...}
         # using the previous results
-        hash = location_variant_ids.each_with_object({}) do |(location_id, variant_id), hash|
+        location_variant_ids.each_with_object({}) do |(location_id, variant_id), hash|
           location = location_lookup[location_id]
           hash[location] ||= Set.new
           hash[location] << variant_id
         end
-
-        hash
       end
 
       def unallocated_inventory_units
@@ -122,9 +121,9 @@ module Spree
       end
 
       def estimate_packages(packages)
-        estimator = Spree::Config.stock.estimator_class.new(order)
+        estimator = Spree::Config.stock.estimator_class.new
         packages.each do |package|
-          package.shipping_rates = estimator.shipping_rates(package)
+          package.shipment.shipping_rates = estimator.shipping_rates(package)
         end
         packages
       end
@@ -142,7 +141,7 @@ module Spree
         Packer.new(stock_location, inventory_units, splitters(stock_location))
       end
 
-      def splitters(stock_location)
+      def splitters(_stock_location)
         # extension point to return custom splitters for a location
         Rails.application.config.spree.stock_splitters
       end

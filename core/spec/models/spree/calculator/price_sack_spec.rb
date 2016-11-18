@@ -1,6 +1,7 @@
 require 'spec_helper'
+require 'shared_examples/calculator_shared_examples'
 
-describe Spree::Calculator::PriceSack, :type => :model do
+describe Spree::Calculator::PriceSack, type: :model do
   let(:calculator) do
     calculator = Spree::Calculator::PriceSack.new
     calculator.preferred_minimal_amount = 5
@@ -9,8 +10,10 @@ describe Spree::Calculator::PriceSack, :type => :model do
     calculator
   end
 
+  it_behaves_like 'a calculator with a description'
+
   let(:order) { stub_model(Spree::Order) }
-  let(:shipment) { stub_model(Spree::Shipment, :amount => 10) }
+  let(:shipment) { stub_model(Spree::Shipment, amount: 10) }
 
   # Regression test for https://github.com/spree/spree/issues/714 and https://github.com/spree/spree/issues/739
   it "computes with an order object" do

@@ -48,7 +48,7 @@ module Spree
       class_name: 'Spree::Variant',
       dependent: :destroy
 
-    has_many :prices, -> { order(Spree::Variant.arel_table[:position].asc, Spree::Variant.arel_table[:id].asc, :currency) }, through: :variants
+    has_many :prices, -> { order(Spree::Variant.arel_table[:position].asc, Spree::Variant.arel_table[:id].asc, :currency) }, through: :variants_including_master
 
     has_many :stock_items, through: :variants_including_master
 
@@ -59,7 +59,10 @@ module Spree
       master || build_master
     end
 
-    MASTER_ATTRIBUTES = [:sku, :price, :currency, :display_amount, :display_price, :weight, :height, :width, :depth, :cost_currency, :price_in, :amount_in, :cost_price]
+    MASTER_ATTRIBUTES = [
+      :rebuild_vat_prices, :sku, :price, :currency, :display_amount, :display_price, :weight,
+      :height, :width, :depth, :cost_currency, :price_in, :price_for, :amount_in, :cost_price
+    ]
     MASTER_ATTRIBUTES.each do |attr|
       delegate :"#{attr}", :"#{attr}=", to: :find_or_build_master
     end
@@ -71,7 +74,6 @@ module Spree
 
     has_many :variant_images, -> { order(:position) }, source: :images, through: :variants_including_master
 
-    after_create :add_associations_from_prototype
     after_create :build_variants_from_option_values_hash, if: :option_values_hash
 
     after_destroy :punch_slug
@@ -111,17 +113,6 @@ module Spree
       super || TaxCategory.find_by(is_default: true)
     end
 
-    # Overrides the prototype_id setter in order to ensure it is cast to an
-    # integer.
-    #
-    # @param value [#to_i] the intended new value
-    # @!attribute [rw] prototype_id
-    #   @return [Fixnum]
-    attr_reader :prototype_id
-    def prototype_id=(value)
-      @prototype_id = value.to_i
-    end
-
     # Ensures option_types and product_option_types exist for keys in
     # option_values_hash.
     #
@@ -129,10 +120,7 @@ module Spree
     def ensure_option_types_exist_for_values_hash
       return if option_values_hash.nil?
       required_option_type_ids = option_values_hash.keys.map(&:to_i)
-      missing_option_type_ids = required_option_type_ids - option_type_ids
-      missing_option_type_ids.each do |id|
-        product_option_types.create(option_type_id: id)
-      end
+      self.option_type_ids |= required_option_type_ids
     end
 
     # Creates a new product with the same attributes, variants, etc.
@@ -161,12 +149,16 @@ module Spree
 
     # Groups variants by the specified option type.
     #
+    # @deprecated This method is not called in the Solidus codebase
     # @param opt_type [String] the name of the option type to group by
+    # @param pricing_options [Spree::Config.pricing_options_class] the pricing options to search
+    #   for, default: the default pricing options
     # @return [Hash] option_type as keys, array of variants as values.
-    def categorise_variants_from_option(opt_type)
+    def categorise_variants_from_option(opt_type, pricing_options = Spree::Config.default_pricing_options)
       return {} unless option_types.include?(opt_type)
-      variants.active.group_by { |v| v.option_values.detect { |o| o.option_type == opt_type} }
+      variants.with_prices(pricing_options).group_by { |v| v.option_values.detect { |o| o.option_type == opt_type } }
     end
+    deprecate :categorise_variants_from_option, deprecator: Spree::Deprecation
 
     # Poor man's full text search.
     #
@@ -184,9 +176,21 @@ module Spree
     end
 
     # @param current_currency [String] currency to filter variants by; defaults to Spree's default
+    # @deprecated This method can only handle prices for currencies
     # @return [Array<Spree::Variant>] all variants with at least one option value
     def variants_and_option_values(current_currency = nil)
       variants.includes(:option_values).active(current_currency).select do |variant|
+        variant.option_values.any?
+      end
+    end
+    deprecate variants_and_option_values: :variants_and_option_values_for,
+              deprecator: Spree::Deprecation
+
+    # @param pricing_options [Spree::Variant::PricingOptions] the pricing options to search
+    #   for, default: the default pricing options
+    # @return [Array<Spree::Variant>] all variants with at least one option value
+    def variants_and_option_values_for(pricing_options = Spree::Config.default_pricing_options)
+      variants.includes(:option_values).with_prices(pricing_options).select do |variant|
         variant.option_values.any?
       end
     end
@@ -199,10 +203,10 @@ module Spree
     # @return [Hash<Spree::OptionType, Array<Spree::OptionValue>>] all option types and option values
     # associated with the products variants grouped by option type
     def variant_option_values_by_option_type(variant_scope = nil)
-      option_value_ids = Spree::OptionValuesVariant.joins(:variant)
-        .where(spree_variants: { product_id: self.id})
-        .merge(variant_scope)
-        .distinct.pluck(:option_value_id)
+      option_value_scope = Spree::OptionValuesVariant.joins(:variant)
+        .where(spree_variants: { product_id: id })
+      option_value_scope = option_value_scope.merge(variant_scope) if variant_scope
+      option_value_ids = option_value_scope.distinct.pluck(:option_value_id)
       Spree::OptionValue.where(id: option_value_ids).
         includes(:option_type).
         order("#{Spree::OptionType.table_name}.position, #{Spree::OptionValue.table_name}.position").
@@ -211,9 +215,7 @@ module Spree
 
     # @return [Boolean] true if there are no option values
     def empty_option_values?
-      options.empty? || options.any? do |opt|
-        opt.option_type.option_values.empty?
-      end
+      options.empty? || !option_types.left_joins(:option_values).where('spree_option_values.id IS NULL').empty?
     end
 
     # @param property_name [String] the name of the property to find
@@ -240,7 +242,7 @@ module Spree
     # @return [Array] all advertised and not-rejected promotions
     def possible_promotions
       promotion_ids = promotion_rules.map(&:promotion_id).uniq
-      Spree::Promotion.advertised.where(id: promotion_ids).reject(&:expired?)
+      Spree::Promotion.advertised.where(id: promotion_ids).reject(&:inactive?)
     end
 
     # The number of on-hand stock items; Infinity if any variant does not track
@@ -276,16 +278,6 @@ module Spree
 
     private
 
-    def add_associations_from_prototype
-      if prototype_id && prototype = Spree::Prototype.find_by(id: prototype_id)
-        prototype.properties.each do |property|
-          product_properties.create(property: property)
-        end
-        self.option_types = prototype.option_types
-        self.taxons = prototype.taxons
-      end
-    end
-
     def any_variants_not_track_inventory?
       if variants_including_master.loaded?
         variants_including_master.any? { |v| !v.should_track_inventory? }
@@ -319,14 +311,15 @@ module Spree
     end
 
     def punch_slug
-      update_column :slug, "#{Time.current.to_i}_#{slug}" # punch slug with date prefix to allow reuse of original
+      # punch slug with date prefix to allow reuse of original
+      update_column :slug, "#{Time.current.to_i}_#{slug}" unless frozen?
     end
 
     # If the master is invalid, the Product object will be assigned its errors
     def validate_master
       unless master.valid?
         master.errors.each do |att, error|
-          self.errors.add(att, error)
+          errors.add(att, error)
         end
       end
     end
@@ -354,7 +347,7 @@ module Spree
 
     def remove_taxon(taxon)
       removed_classifications = classifications.where(taxon: taxon)
-      removed_classifications.each &:remove_from_list
+      removed_classifications.each(&:remove_from_list)
     end
   end
 end

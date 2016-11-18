@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 module Spree
-  describe Spree::Order, :type => :model do
+  describe Spree::Order, type: :model do
     let(:order) { stub_model(Spree::Order) }
     let(:updater) { Spree::OrderUpdater.new(order) }
 
@@ -22,8 +22,8 @@ module Spree
         expect(order.payment_state).to eq('paid')
         expect(order.payment_total).to eq(100)
 
-        expect(payment_1.reload).to be_completed
-        expect(payment_2.reload).to be_completed
+        expect(payment_1).to be_completed
+        expect(payment_2).to be_completed
       end
 
       it 'does not go over total for order' do
@@ -37,29 +37,21 @@ module Spree
         expect(order.payment_state).to eq('paid')
         expect(order.payment_total).to eq(100)
 
-        expect(payment_1.reload).to be_completed
-        expect(payment_2.reload).to be_completed
-        expect(payment_3.reload).to be_checkout
+        expect(payment_1).to be_completed
+        expect(payment_2).to be_completed
+        expect(payment_3).to be_checkout
       end
 
       it "does not use failed payments" do
-        create(:payment, order: order, amount: 50)
-        create(:payment, order: order, amount: 50, state: 'failed')
-        order.payments.reload
+        payment1 = create(:payment, order: order, amount: 50)
+        payment2 = create(:payment, order: order, amount: 50, state: 'failed')
 
-        expect(order.payments[0]).to receive(:process!).and_call_original
-        expect(order.payments[1]).not_to receive(:process!)
+        expect(payment1).to receive(:process!).and_call_original
+        expect(payment2).not_to receive(:process!)
 
         order.process_payments!
 
         expect(order.payment_total).to eq(50)
-      end
-    end
-
-    context "with no payments" do
-      it "should return falsy" do
-        expect(order).to receive_messages total: 100
-        expect(order.process_payments!).to be_falsy
       end
     end
 
@@ -75,19 +67,19 @@ module Spree
       let(:payment_method){ create(:credit_card_payment_method) }
       let(:payment_attributes) do
         {
-          :payment_method_id => payment_method.id,
-          :source_attributes => {
-            :name => "Ryan Bigg",
-            :number => "41111111111111111111",
-            :expiry => "01 / 15",
-            :verification_value => "123"
+          payment_method_id: payment_method.id,
+          source_attributes: {
+            name: "Ryan Bigg",
+            number: "41111111111111111111",
+            expiry: "01 / 15",
+            verification_value: "123"
           }
         }
       end
 
       # For the reason of this test, please see spree/spree_gateway#132
       it "keeps source attributes on assignment" do
-        ActiveSupport::Deprecation.silence do
+        Spree::Deprecation.silence do
           order.update_attributes(payments_attributes: [payment_attributes])
         end
         expect(order.unprocessed_payments.last.source.number).to be_present
@@ -121,23 +113,16 @@ module Spree
         expect(order.process_payments!).to be_truthy
       end
 
-      # Regression spec for https://github.com/spree/spree/issues/5436
-      it 'should raise an error if there are no payments to process' do
-        allow(order).to receive_messages unprocessed_payments: []
-        expect(payment).to_not receive(:process!)
-        expect(order.process_payments!).to be_falsey
-      end
-
       context "when a payment raises a GatewayError" do
         before { expect(payment).to receive(:process!).and_raise(Spree::Core::GatewayError) }
 
         it "should return true when configured to allow checkout on gateway failures" do
-          Spree::Config.set :allow_checkout_on_gateway_error => true
+          Spree::Config.set allow_checkout_on_gateway_error: true
           expect(order.process_payments!).to be true
         end
 
         it "should return false when not configured to allow checkout on gateway failures" do
-          Spree::Config.set :allow_checkout_on_gateway_error => false
+          Spree::Config.set allow_checkout_on_gateway_error: false
           expect(order.process_payments!).to be false
         end
       end
@@ -145,7 +130,7 @@ module Spree
 
     context "#authorize_payments!" do
       let(:payment) { stub_model(Spree::Payment) }
-      before { allow(order).to receive_messages :unprocessed_payments => [payment], :total => 10 }
+      before { allow(order).to receive_messages unprocessed_payments: [payment], total: 10 }
       subject { order.authorize_payments! }
 
       it "processes payments with attempt_authorization!" do
@@ -158,7 +143,7 @@ module Spree
 
     context "#capture_payments!" do
       let(:payment) { stub_model(Spree::Payment) }
-      before { allow(order).to receive_messages :unprocessed_payments => [payment], :total => 10 }
+      before { allow(order).to receive_messages unprocessed_payments: [payment], total: 10 }
       subject { order.capture_payments! }
 
       it "processes payments with attempt_authorization!" do
@@ -201,7 +186,7 @@ module Spree
           before { order.update_attributes(state: 'canceled') }
 
           it "it should be a negative amount incorporating reimbursements" do
-            expect(order.outstanding_balance).to eq -10
+            expect(order.outstanding_balance).to eq(-10)
           end
         end
 

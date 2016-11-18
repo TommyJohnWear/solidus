@@ -1,12 +1,13 @@
 require 'spec_helper'
 
-describe "Stock Locations", :type => :feature do
+describe "Stock Locations", type: :feature do
   stub_authorization!
 
   before(:each) do
-    country = create(:country)
+    create(:country)
     visit spree.admin_path
     click_link "Settings"
+    click_link "Shipping"
     click_link "Stock Locations"
   end
 
@@ -21,7 +22,7 @@ describe "Stock Locations", :type => :feature do
   end
 
   it "can delete an existing stock location", js: true do
-    location = create(:stock_location)
+    create(:stock_location)
     visit current_path
 
     expect(find('#listing_stock_locations')).to have_content("NY Warehouse")
@@ -30,8 +31,8 @@ describe "Stock Locations", :type => :feature do
     end
     # Wait for API request to complete.
     wait_for_ajax
-    visit current_path 
-    expect(page).to have_content("NO STOCK LOCATIONS FOUND")
+    visit current_path
+    expect(page).to have_content("No Stock Locations found")
   end
 
   it "can update an existing stock location" do

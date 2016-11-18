@@ -9,25 +9,34 @@ $.fn.userAutocomplete = function () {
     minimumInputLength: 1,
     multiple: true,
     initSelection: function (element, callback) {
-      $.get(Spree.routes.user_search, {
-        ids: element.val()
-      }, function (data) {
-        callback(data.users);
+      Spree.ajax({
+        url: Spree.routes.users_api,
+        data: {
+          ids: element.val()
+        },
+        success: function(data) {
+          callback(data.users);
+        }
       });
     },
     ajax: {
-      url: Spree.routes.user_search,
+      url: Spree.routes.users_api,
       datatype: 'json',
       params: { "headers": { "X-Spree-Token": Spree.api_key } },
       data: function (term) {
         return {
-          q: term,
-          token: Spree.api_key
+          q: {
+            m: 'or',
+            email_start: term,
+            addresses_firstname_start: term,
+            addresses_lastname_start: term
+          }
         };
       },
       results: function (data) {
         return {
-          results: data.users
+          results: data.users,
+          more: data.current_page < data.pages
         };
       }
     },
