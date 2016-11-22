@@ -611,6 +611,53 @@ describe Spree::Payment, type: :model do
     end
   end
 
+  describe "#credit_allowed_in_cents" do
+    subject { payment.credit_allowed_in_cents }
+
+    let(:currency) { 'USD' }
+    let(:order) { create :order, currency: currency }
+    let(:payment) do
+      create :payment, amount: 100, order: order, state: 'completed'
+    end
+
+    context "when there are no offsets" do
+      context "when the currency is USD" do
+        it "it returns the payment amount in cents" do
+          expect(subject).to eq(10000)
+        end
+      end
+
+      context "when the currency is JPY" do
+        let(:currency) { 'JPY' }
+        it "it returns the total amount" do
+          expect(subject).to eq(100)
+        end
+      end
+    end
+
+    context "when there are offsets" do
+      before do
+        payment.offsets.create!(
+          amount: -80,
+          order: order,
+          source: payment,
+          state: 'completed'
+        )
+      end
+
+      it "is the difference between offsets total and payment amount in cents" do
+        expect(subject).to eq(2000)
+      end
+
+      context "when the currency is JPY" do
+        let(:currency) { 'JPY' }
+        it "it returns the total amount minus offsets" do
+          expect(subject).to eq(20)
+        end
+      end
+    end
+  end
+
   describe "#can_credit?" do
     it "is true if credit_allowed > 0" do
       allow(payment).to receive(:credit_allowed).and_return(100)

@@ -140,6 +140,20 @@ module Spree
       amount - (offsets_total.abs + refunds.sum(:amount))
     end
 
+    # The total amount this payment can be credited in cents.
+    #
+    # For currencies which do not support decimal places, it will return the
+    # full value.
+    #
+    # @return [Fixnum] The amount of this payment minus offets and refunds
+    #   in cents.
+    def credit_allowed_in_cents
+      Spree::Money.new(
+        credit_allowed,
+        currency: currency
+      ).money.cents
+    end
+
     # @return [Boolean] true when this payment can be credited
     def can_credit?
       credit_allowed > 0
