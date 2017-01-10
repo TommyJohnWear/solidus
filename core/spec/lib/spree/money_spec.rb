@@ -124,4 +124,106 @@ describe Spree::Money do
       expect(money.as_json(options)).to eq("$10.00")
     end
   end
+
+  describe 'subtraction' do
+    context "for money objects with same currency" do
+      let(:money_1) { Spree::Money.new(32.00, currency: "USD") }
+      let(:money_2) { Spree::Money.new(15.00, currency: "USD") }
+
+      it "subtracts correctly" do
+        expect(money_1 - money_2).to eq(Spree::Money.new(17.00, currency: "USD"))
+      end
+    end
+
+    context "when trying to subtract money objects in different currencies" do
+      let(:money_1) { Spree::Money.new(32.00, currency: "EUR") }
+      let(:money_2) { Spree::Money.new(15.00, currency: "USD") }
+
+      it "will not work" do
+        expect { money_1 - money_2 }.to raise_error(Money::Bank::UnknownRate)
+      end
+    end
+
+    context "if other does not respond to .money" do
+      let(:money_1) { Spree::Money.new(32.00, currency: "EUR") }
+      let(:money_2) { ::Money.new(1500) }
+
+      it 'raises a TypeError' do
+        expect { money_1 - money_2 }.to raise_error(TypeError)
+      end
+    end
+  end
+
+  describe 'addition' do
+    context "for money objects with same currency" do
+      let(:money_1) { Spree::Money.new(37.00, currency: "USD") }
+      let(:money_2) { Spree::Money.new(15.00, currency: "USD") }
+
+      it "subtracts correctly" do
+        expect(money_1 + money_2).to eq(Spree::Money.new(52.00, currency: "USD"))
+      end
+    end
+
+    context "when trying to subtract money objects in different currencies" do
+      let(:money_1) { Spree::Money.new(32.00, currency: "EUR") }
+      let(:money_2) { Spree::Money.new(15.00, currency: "USD") }
+
+      it "will not work" do
+        expect { money_1 + money_2 }.to raise_error(Money::Bank::UnknownRate)
+      end
+    end
+
+    context "if other does not respond to .money" do
+      let(:money_1) { Spree::Money.new(32.00, currency: "EUR") }
+      let(:money_2) { ::Money.new(1500) }
+
+      it 'raises a TypeError' do
+        expect { money_1 + money_2 }.to raise_error(TypeError)
+      end
+    end
+  end
+
+  describe 'equality checks' do
+    context "if other does not respond to .money" do
+      let(:money_1) { Spree::Money.new(32.00, currency: "EUR") }
+      let(:money_2) { ::Money.new(1500) }
+
+      it 'raises a TypeError' do
+        expect { money_1 == money_2 }.to raise_error(TypeError)
+      end
+    end
+  end
+
+  it "includes Comparable" do
+    expect(described_class).to include(Comparable)
+  end
+
+  describe "<=>" do
+    let(:usd_10) { Spree::Money.new(10, currency: "USD") }
+    let(:usd_20) { Spree::Money.new(20, currency: "USD") }
+    let(:usd_30) { Spree::Money.new(30, currency: "USD") }
+
+    it "compares the two amounts" do
+      expect(usd_20 <=> usd_20).to eq 0
+      expect(usd_20 <=> usd_10).to be > 0
+      expect(usd_20 <=> usd_30).to be < 0
+    end
+
+    context "with a non Spree::Money object" do
+      it "raises an error" do
+        expect { usd_10 <=> 20 }.to raise_error(TypeError)
+      end
+    end
+
+    context "with differing currencies" do
+      let(:cad) { Spree::Money.new(10, currency: "CAD") }
+
+      it "raises an error" do
+        expect { usd_10 <=> cad }.to raise_error(
+          Spree::Money::DifferentCurrencyError
+        )
+      end
+    end
+  end
+>>>>>>> 943b2c5... Add Comparable to Spree::Money
 end
