@@ -110,10 +110,11 @@ module Spree
       # filter sensitive information during logging
       initializer "spree.params.filter" do |app|
         app.config.filter_parameters += [
-          :password,
-          :password_confirmation,
-          :number,
-          :verification_value]
+          %r{^password$},
+          %r{^password_confirmation$},
+          %r{^number$}, # Credit Card number
+          %r{^verification_value$} # Credit Card verification value
+        ]
       end
 
       initializer "spree.core.checking_migrations" do |app|
