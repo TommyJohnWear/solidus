@@ -7,8 +7,6 @@ describe "Order Details", type: :feature, js: true do
   let!(:tote) { create(:product, name: "Tote", price: 15.00) }
   let(:order) { create(:order, state: 'complete', completed_at: "2011-02-01 12:36:15", number: "R100") }
   let(:state) { create(:state) }
-  # let(:shipment) { create(:shipment, :order => order, :stock_location => stock_location) }
-  let!(:shipping_method) { create(:shipping_method, name: "Default") }
 
   before do
     order.shipments.create(stock_location_id: stock_location.id)
@@ -98,11 +96,11 @@ describe "Order Details", type: :feature, js: true do
         within("table.index tr.show-method") do
           click_icon :edit
         end
-        select2 "Default", from: "Shipping Method"
+        select2 "UPS Ground", from: "Shipping Method"
         click_icon :check
 
         expect(page).not_to have_css('#selected_shipping_rate_id')
-        expect(page).to have_content("Default")
+        expect(page).to have_content("UPS Ground")
       end
 
       it "will show the variant sku" do
@@ -519,11 +517,11 @@ describe "Order Details", type: :feature, js: true do
       within("table.index tr.show-method") do
         click_icon :edit
       end
-      select2 "Default", from: "Shipping Method"
+      select2 "UPS Ground", from: "Shipping Method"
       click_icon :check
 
       expect(page).not_to have_css('#selected_shipping_rate_id')
-      expect(page).to have_content("Default")
+      expect(page).to have_content("UPS Ground")
     end
 
     it 'can ship' do

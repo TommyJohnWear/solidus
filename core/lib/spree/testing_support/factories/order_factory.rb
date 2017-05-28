@@ -18,10 +18,14 @@ FactoryGirl.define do
       line_items_price BigDecimal.new(10)
     end
 
+    # TODO: Improve the name of order_with_totals factory.
     factory :order_with_totals do
-      after(:create) do |order, evaluator|
-        create(:line_item, order: order, price: evaluator.line_items_price)
-        order.line_items.reload # to ensure order.line_items is accessible after
+      after(:build) do |order, evaluator|
+        order.line_items << build(
+          :line_item,
+          order: order,
+          price: evaluator.line_items_price
+        )
       end
     end
 
@@ -37,7 +41,7 @@ FactoryGirl.define do
         stock_location { create(:stock_location) }
       end
 
-      after(:create) do |order, evaluator|
+      after(:build) do |order, evaluator|
         evaluator.stock_location # must evaluate before creating line items
 
         evaluator.line_items_attributes.each do |attributes|
@@ -52,11 +56,51 @@ FactoryGirl.define do
         order.update!
       end
 
+      factory :completed_order_with_promotion do
+        transient do
+          promotion nil
+        end
+
+        after(:create) do |order, evaluator|
+          promotion = evaluator.promotion || create(:promotion, code: "test")
+          promotion_code = promotion.codes.first || create(:promotion_code, promotion: promotion)
+
+          promotion.activate(order: order, promotion_code: promotion_code)
+          order.order_promotions.create!(promotion: promotion, promotion_code: promotion_code)
+
+          # Complete the order after the promotion has been activated
+          order.refresh_shipment_rates
+          order.update_column(:completed_at, Time.current)
+          order.update_column(:state, "complete")
+        end
+      end
+
+      factory :order_ready_to_complete do
+        state 'confirm'
+        payment_state 'checkout'
+
+        transient do
+          payment_type :credit_card_payment
+        end
+
+        after(:create) do |order, evaluator|
+          create(evaluator.payment_type, {
+            amount: order.total,
+            order: order,
+            state: order.payment_state
+          })
+
+          order.payments.reload
+        end
+      end
+
       factory :completed_order_with_totals do
         state 'complete'
 
         after(:create) do |order|
-          order.refresh_shipment_rates
+          order.shipments.each do |shipment|
+            shipment.inventory_units.update_all state: 'on_hand', pending: false
+          end
           order.update_column(:completed_at, Time.current)
         end
 
@@ -103,22 +147,6 @@ FactoryGirl.define do
             end
           end
         end
-      end
-    end
-  end
-
-  factory :completed_order_with_promotion, parent: :completed_order_with_totals, class: "Spree::Order" do
-    transient do
-      promotion nil
-      promotion_code nil
-    end
-
-    after(:create) do |order, evaluator|
-      promotion = evaluator.promotion || create(:promotion, code: "test")
-      promotion_code = evaluator.promotion_code || promotion.codes.first
-
-      promotion.actions.each do |action|
-        action.perform({ order: order, promotion: promotion, promotion_code: promotion_code })
       end
     end
   end
