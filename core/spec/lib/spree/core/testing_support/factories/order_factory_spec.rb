@@ -80,15 +80,21 @@ RSpec.shared_examples "an order with line items factory" do |expected_order_stat
   context 'when shipments should be taxed' do
     let!(:ship_address) { create(:address) }
     let!(:tax_zone) { create(:global_zone) } # will include the above address
-    let!(:tax_rate) { create(:tax_rate, amount: 0.10, zone: tax_zone, tax_categories: [tax_category]) }
+    let!(:tax_rate) { create(:tax_rate, amount: 0.10, zone: tax_zone, tax_category: tax_category) }
 
     let(:tax_category) { create(:tax_category) }
     let(:shipping_method) { create(:shipping_method, tax_category: tax_category, zones: [tax_zone]) }
 
     it 'shipments get a tax adjustment' do
       order = create(factory, ship_address: ship_address, shipping_method: shipping_method)
-      shipment = order.shipments[0]
 
+      # This tax charge needs to be invoked specifically in Solidus 1.3. In
+      # future versions of Solidus (2.1+), this is run automatically by the
+      # order updater. At that point, this call can be removed.
+      order.create_tax_charge!
+
+      expect(order.shipments.size).to be 1
+      shipment = order.shipments[0]
       expect(shipment.additional_tax_total).to be > 0
     end
   end
