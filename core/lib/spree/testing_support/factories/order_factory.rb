@@ -143,6 +143,7 @@ FactoryGirl.define do
                   shipped_at: Time.current
                 )
               end
+              order.update!
               order.reload
             end
           end
