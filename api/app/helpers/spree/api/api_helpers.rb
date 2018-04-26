@@ -174,7 +174,7 @@ module Spree
 
       @@store_credit_history_attributes = [
         :display_amount, :display_user_total_amount, :display_action,
-        :display_event_date, :display_remaining_amount
+        :display_event_date
       ]
 
       @@stock_transfer_attributes = [:id, :number]
