@@ -7,6 +7,9 @@ machine:
   ruby:
     version: 2.2.5
 dependencies:
+  pre:
+    - gem uninstall bundler --force --all --executables
+    - gem install bundler -v 1.14.6
   override:
     - bundle check --path=vendor/bundle || bundle install --path=vendor/bundle
     - ./build-ci.rb install
